@@ -55,12 +55,9 @@ class Compare(nn.Module):
 				nn.BatchNorm2d(planes * block.expansion),
 			)
 
-		layers = []
-		layers.append(block(self.inplanes, planes, stride, downsample))
+		layers = [block(self.inplanes, planes, stride, downsample)]
 		self.inplanes = planes * block.expansion
-		for i in range(1, blocks):
-			layers.append(block(self.inplanes, planes))
-
+		layers.extend(block(self.inplanes, planes) for _ in range(1, blocks))
 		return nn.Sequential(*layers)
 
 
@@ -106,28 +103,23 @@ class Compare(nn.Module):
 		# eq: [b, querysz, setsz] => [b, querysz, setsz] and convert byte tensor to float tensor
 		label = torch.eq(support_yf, query_yf).float()
 
-		# score: [b, querysz, setsz]
-		# label: [b, querysz, setsz]
 		if train:
-			loss = torch.pow(label - score, 2).sum() / batchsz
-			return loss
+			return torch.pow(label - score, 2).sum() / batchsz
+		# [b, querysz, setsz]
+		rn_score_np = score.cpu().data.numpy()
+		pred = []
+		# [b, setsz]
+		support_y_np = support_y.cpu().data.numpy()
+		for i, batch in enumerate(rn_score_np):
+			for query in batch:
+				sim = [
+					np.sum(query[way * self.k_shot : (way + 1) * self.k_shot])
+					for way in range(self.n_way)
+				]
+				idx = np.array(sim).argmax()
+				pred.append(support_y_np[i, idx * self.k_shot])
+		# pred: [b, querysz]
+		pred = Variable(torch.from_numpy(np.array(pred).reshape((batchsz, querysz)))).cuda()
 
-		else:
-			# [b, querysz, setsz]
-			rn_score_np = score.cpu().data.numpy()
-			pred = []
-			# [b, setsz]
-			support_y_np = support_y.cpu().data.numpy()
-			for i, batch in enumerate(rn_score_np):
-				for j, query in enumerate(batch):
-					# query: [setsz]
-					sim = []  # [n_way]
-					for way in range(self.n_way):
-						sim.append(np.sum(query[way * self.k_shot: (way + 1) * self.k_shot]))
-					idx = np.array(sim).argmax()
-					pred.append(support_y_np[i, idx * self.k_shot])
-			# pred: [b, querysz]
-			pred = Variable(torch.from_numpy(np.array(pred).reshape((batchsz, querysz)))).cuda()
-
-			correct = torch.eq(pred, query_y).sum()
-			return pred, correct
+		correct = torch.eq(pred, query_y).sum()
+		return pred, correct

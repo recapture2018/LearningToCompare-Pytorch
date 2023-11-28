@@ -62,7 +62,7 @@ class MiniImagenet(Dataset):
 			                                     ])
 
 		self.path = os.path.join(root, 'images')  # image path
-		csvdata = self.loadCSV(os.path.join(root, mode + '.csv'))  # csv path
+		csvdata = self.loadCSV(os.path.join(root, f'{mode}.csv'))
 		self.data = []
 		self.img2label = {}
 		for i, (k, v) in enumerate(csvdata.items()):
@@ -82,11 +82,11 @@ class MiniImagenet(Dataset):
 		with open(csvf) as csvfile:
 			csvreader = csv.reader(csvfile, delimiter=',')
 			next(csvreader, None)  # skip (filename, label)
-			for i, row in enumerate(csvreader):
+			for row in csvreader:
 				filename = row[0]
 				label = row[1]
 				# append filename to current label
-				if label in dictLabels.keys():
+				if label in dictLabels:
 					dictLabels[label].append(filename)
 				else:
 					dictLabels[label] = [filename]
@@ -101,7 +101,7 @@ class MiniImagenet(Dataset):
 		"""
 		self.support_x_batch = []  # support set batch
 		self.query_x_batch = []  # query set batch
-		for b in range(batchsz):  # for each batch
+		for _ in range(batchsz):
 			# 1.select n_way classes randomly
 			selected_cls = np.random.choice(self.cls_num, self.n_way, False)  # no duplicate
 			support_x = []
@@ -169,7 +169,7 @@ if __name__ == '__main__':
 	tb = SummaryWriter('runs', 'mini-imagenet')
 	mini = MiniImagenet('../mini-imagenet/', mode='train', n_way=5, k_shot=1, k_query=1, batchsz=1000, resize=168)
 
-	for i, set_ in enumerate(mini):
+	for set_ in mini:
 		# support_x: [k_shot*n_way, 3, 84, 84]
 		support_x, support_y, query_x, query_y = set_
 
