@@ -28,13 +28,14 @@ if __name__ == '__main__':
 		net.load_state_dict(torch.load(mdl_file))
 
 	model_parameters = filter(lambda p: p.requires_grad, net.parameters())
-	params = sum([np.prod(p.size()) for p in model_parameters])
+	params = sum(np.prod(p.size()) for p in model_parameters)
 	print('total params:', params)
 
 	optimizer = optim.Adam(net.parameters(), lr=1e-3)
 	tb = SummaryWriter('runs', str(datetime.now()))
 
 	best_accuracy = 0
+	total_val_loss = 0
 	for epoch in range(1000):
 
 		mini = MiniImagenet('../mini-imagenet/', mode='train', n_way=n_way, k_shot=k_shot, k_query=k_query,
@@ -58,12 +59,11 @@ if __name__ == '__main__':
 			loss.backward()
 			optimizer.step()
 
-			total_val_loss = 0
 			if step % 200 == 0:
 				total_correct = 0
 				total_num = 0
 				display_onebatch = False # display one batch on tensorboard
-				for j, batch_test in enumerate(db_val):
+				for batch_test in db_val:
 					support_x = Variable(batch_test[0]).cuda()
 					support_y = Variable(batch_test[1]).cuda()
 					query_x = Variable(batch_test[2]).cuda()

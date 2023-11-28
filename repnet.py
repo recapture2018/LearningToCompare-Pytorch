@@ -113,12 +113,9 @@ class ResNet(nn.Module):
 				nn.BatchNorm2d(planes * block.expansion),
 			)
 
-		layers = []
-		layers.append(block(self.inplanes, planes, stride, downsample))
+		layers = [block(self.inplanes, planes, stride, downsample)]
 		self.inplanes = planes * block.expansion
-		for i in range(1, blocks):
-			layers.append(block(self.inplanes, planes))
-
+		layers.extend(block(self.inplanes, planes) for _ in range(1, blocks))
 		return nn.Sequential(*layers)
 
 	def forward(self, x):
@@ -139,15 +136,15 @@ def repnet_deep(pretrained=False, **kwargs):
 
 	Args:
 	"""
-	model_urls = {
-		'resnet18': 'https://download.pytorch.org/models/resnet18-5c106cde.pth',
-		'resnet34': 'https://download.pytorch.org/models/resnet34-333f7ec4.pth',
-		'resnet50': 'https://download.pytorch.org/models/resnet50-19c8e357.pth',
-		'resnet101': 'https://download.pytorch.org/models/resnet101-5d3b4d8f.pth',
-		'resnet152': 'https://download.pytorch.org/models/resnet152-b121ed2d.pth',
-	}
-
 	model = ResNet(Bottleneck, [3, 4, 6], **kwargs)
 	if pretrained:
+		model_urls = {
+			'resnet18': 'https://download.pytorch.org/models/resnet18-5c106cde.pth',
+			'resnet34': 'https://download.pytorch.org/models/resnet34-333f7ec4.pth',
+			'resnet50': 'https://download.pytorch.org/models/resnet50-19c8e357.pth',
+			'resnet101': 'https://download.pytorch.org/models/resnet101-5d3b4d8f.pth',
+			'resnet152': 'https://download.pytorch.org/models/resnet152-b121ed2d.pth',
+		}
+
 		model.load_state_dict(model_zoo.load_url(model_urls['resnet18']), strict=False)
 	return model
